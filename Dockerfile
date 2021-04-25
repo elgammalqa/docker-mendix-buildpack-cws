@@ -3,10 +3,13 @@
 #
 # Author: Mendix Digital Ecosystems, digitalecosystems@mendix.com
 # Version: 2.1.0
-ARG ROOTFS_IMAGE=amirelgammal/mendix-build:95
+
+ARG ROOTFS_IMAGE=mendix/rootfs:ubi8
+ARG BUILDER_ROOTFS_IMAGE=amirelgammal/mendix-build:95
+
 
 # Build stage
-FROM ${ROOTFS_IMAGE} AS builder
+FROM ${BUILDER_ROOTFS_IMAGE} AS builder
 
 # Build-time variables
 ARG BUILD_PATH=project
