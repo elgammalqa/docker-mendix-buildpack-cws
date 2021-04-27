@@ -4,8 +4,8 @@
 # Author: Mendix Digital Ecosystems, digitalecosystems@mendix.com
 # Version: 2.1.0
 
-ARG ROOTFS_IMAGE=mendix/rootfs:ubi8
-ARG BUILDER_ROOTFS_IMAGE=amirelgammal/mendix-build:95
+ARG ROOTFS_IMAGE=amirelgammal/cws:135
+ARG BUILDER_ROOTFS_IMAGE=amirelgammal/cws:135
 
 
 # Build stage
