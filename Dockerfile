@@ -46,7 +46,6 @@ RUN chmod +rx /opt/mendix/buildpack/bin/bootstrap-python && /opt/mendix/buildpac
 # Add the buildpack modules
 ENV PYTHONPATH "$PYTHONPATH:/opt/mendix/buildpack/lib/:/opt/mendix/buildpack/:/opt/mendix/buildpack/lib/python3.6/site-packages/"
 
-ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
 # Each comment corresponds to the script line:
 # 1. Create cache directory and directory for dependencies which can be shared
 # 2. Set permissions for compilation scripts
@@ -94,7 +93,7 @@ COPY --from=builder /var/mendix/build/runtimes /opt/mendix/build/runtimes
 
 # Copy build artifacts from build container
 COPY --from=builder /opt/mendix /opt/mendix
-ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
+
 WORKDIR /opt/mendix/build
 
 USER 1001
