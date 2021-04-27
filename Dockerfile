@@ -5,7 +5,7 @@
 # Version: 2.1.0
 
 ARG ROOTFS_IMAGE=amirelgammal/cws:135
-ARG BUILDER_ROOTFS_IMAGE=amirelgammal/cws:135
+ARG BUILDER_ROOTFS_IMAGE=amirelgammal/mendix-build:95
 
 
 # Build stage
