@@ -1,3 +1,8 @@
+# Dockerfile to create a Mendix Docker image based on either the source code or
+# Mendix Deployment Archive (aka mda file)
+#
+# Author: Mendix Digital Ecosystems, digitalecosystems@mendix.com
+# Version: 2.1.0
 ARG ROOTFS_IMAGE=amirelgammal/omnix-mendix-bionic:157
 
 # Build stage
@@ -9,6 +14,13 @@ ARG DD_API_KEY
 # CF buildpack version
 ARG CF_BUILDPACK=v4.12.0
 
+# Each comment corresponds to the script line:
+# 1. Create all directories needed by scripts
+# 2. Download CF buildpack
+# 3. Extract CF buildpack
+# 4. Delete CF buildpack zip archive
+# 5. Update ownership of /opt/mendix so that the app can run as a non-root user
+# 6. Update permissions of /opt/mendix so that the app can run as a non-root user
 RUN mkdir -p /opt/mendix/buildpack /opt/mendix/build &&\
     echo "CF Buildpack version ${CF_BUILDPACK}"
  
@@ -41,7 +53,7 @@ ENV PYTHONPATH "$PYTHONPATH:/opt/mendix/buildpack/lib/:/opt/mendix/buildpack/:/o
 # 7. Update ownership of /opt/mendix so that the app can run as a non-root user
 # 8. Update permissions of /opt/mendix so that the app can run as a non-root user
 RUN mkdir -p /tmp/buildcache /var/mendix/build /var/mendix/build/.local &&\
-    chmod +rx /opt/mendix/buildpack/compilation /opt/mendix/buildpack/git /opt/mendix/buildpack/buildpack/compile.py &&\
+    chmod +rx /opt/mendix/buildpack/compilation /opt/mendix/buildpack/git /opt/mendix/buildpack/buildpack/stage.py &&\
     cd /opt/mendix/buildpack &&\
     ./compilation /opt/mendix/build /tmp/buildcache &&\
     rm -fr /tmp/buildcache /tmp/javasdk /tmp/opt /tmp/downloads /opt/mendix/buildpack/compilation /opt/mendix/buildpack/git &&\
