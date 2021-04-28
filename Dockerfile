@@ -1,35 +1,24 @@
-ARG ROOTFS_IMAGE=amirelgammal/omnix-mendix-ubi8:153
-ARG BUILDER_ROOTFS_IMAGE=amirelgammal/omnix-mendix-ubi8:153
+ARG ROOTFS_IMAGE=mendix/rootfs:bionic
 
 # Build stage
-FROM ${BUILDER_ROOTFS_IMAGE} AS builder
+FROM ${ROOTFS_IMAGE} AS builder
 
+# Build-time variables
 ARG BUILD_PATH=project
 ARG DD_API_KEY
 # CF buildpack version
-ARG CF_BUILDPACK=v4.12.0
-# ARG EXCLUDE_LOGFILTER=true
-
-# # Allow specification of alternative BLOBSTORE location and debugging
-# ARG BLOBSTORE
-# ARG BUILDPACK_XTRACE
+ARG CF_BUILDPACK=v4.9.4
 
 # Each comment corresponds to the script line:
 # 1. Create all directories needed by scripts
 # 2. Download CF buildpack
-# 3. Extract CF buildpack
-# 4. Delete CF buildpack zip archive
-# 5. Update ownership of /opt/mendix so that the app can run as a non-root user
-# 6. Update permissions of /opt/mendix so that the app can run as a non-root user
+# 4. Update ownership of /opt/mendix so that the app can run as a non-root user
+# 5. Update permissions of /opt/mendix so that the app can run as a non-root user
 RUN mkdir -p /opt/mendix/buildpack /opt/mendix/build &&\
-    echo "CF Buildpack version ${CF_BUILDPACK}"
- 
-COPY cf-mendix-buildpack.zip /tmp/cf-mendix-buildpack.zip
-
-RUN python3 -m zipfile -e /tmp/cf-mendix-buildpack.zip /opt/mendix/buildpack/ &&\
-    rm /tmp/cf-mendix-buildpack.zip &&\
+    echo "CF Buildpack version ${CF_BUILDPACK}" &&\
+    curl -fsSL https://github.com/mendix/cf-mendix-buildpack/archive/${CF_BUILDPACK}.tar.gz | tar xz -C /opt/mendix/buildpack --strip-components 1 &&\
     chgrp -R 0 /opt/mendix &&\
-    chmod -R g=u /opt/mendix
+    chmod -R g=u  /opt/mendix
 
 # Copy python scripts which execute the buildpack (exporting the VCAP variables)
 COPY scripts/compilation scripts/git /opt/mendix/buildpack/
@@ -43,9 +32,6 @@ RUN chmod +rx /opt/mendix/buildpack/bin/bootstrap-python && /opt/mendix/buildpac
 # Add the buildpack modules
 ENV PYTHONPATH "$PYTHONPATH:/opt/mendix/buildpack/lib/:/opt/mendix/buildpack/:/opt/mendix/buildpack/lib/python3.6/site-packages/"
 
-# Use nginx supplied by the base OS
-ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
-
 # Each comment corresponds to the script line:
 # 1. Create cache directory and directory for dependencies which can be shared
 # 2. Set permissions for compilation scripts
@@ -56,7 +42,7 @@ ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
 # 7. Update ownership of /opt/mendix so that the app can run as a non-root user
 # 8. Update permissions of /opt/mendix so that the app can run as a non-root user
 RUN mkdir -p /tmp/buildcache /var/mendix/build /var/mendix/build/.local &&\
-    chmod +rx /opt/mendix/buildpack/compilation /opt/mendix/buildpack/git /opt/mendix/buildpack/buildpack/stage.py &&\
+    chmod +rx /opt/mendix/buildpack/compilation /opt/mendix/buildpack/git /opt/mendix/buildpack/buildpack/compile.py &&\
     cd /opt/mendix/buildpack &&\
     ./compilation /opt/mendix/build /tmp/buildcache &&\
     rm -fr /tmp/buildcache /tmp/javasdk /tmp/opt /tmp/downloads /opt/mendix/buildpack/compilation /opt/mendix/buildpack/git &&\
@@ -68,28 +54,14 @@ FROM ${ROOTFS_IMAGE}
 LABEL Author="Mendix Digital Ecosystems"
 LABEL maintainer="digitalecosystems@mendix.com"
 
-# Uninstall build-time dependencies to remove potentially vulnerable libraries
-ARG UNINSTALL_BUILD_DEPENDENCIES=true
-
 # Allow the root group to modify /etc/passwd so that the startup script can update the non-root uid
 RUN chmod g=u /etc/passwd
-
-# Uninstall Ubuntu packages which are only required during build time
-RUN if [ "$UNINSTALL_BUILD_DEPENDENCIES" = "true" ] && grep -q ubuntu /etc/os-release ; then\
-        DEBIAN_FRONTEND=noninteractive apt-mark manual libfontconfig1 && \
-        DEBIAN_FRONTEND=noninteractive apt-get remove --purge --auto-remove -q -y wget curl libgdiplus ; \
-    fi
 
 # Add the buildpack modules
 ENV PYTHONPATH "/opt/mendix/buildpack/lib/:/opt/mendix/buildpack/:/opt/mendix/buildpack/lib/python3.6/site-packages/"
 
 # Copy start scripts
 COPY scripts/startup scripts/vcap_application.json /opt/mendix/build/
-
-# Create vcap home directory for Datadog configuration
-RUN mkdir -p /home/vcap &&\
-    chgrp -R 0 /home/vcap &&\
-    chmod -R g=u /home/vcap
 
 # Each comment corresponds to the script line:
 # 1. Make the startup script executable
@@ -108,16 +80,10 @@ COPY --from=builder /var/mendix/build/runtimes /opt/mendix/build/runtimes
 # Copy build artifacts from build container
 COPY --from=builder /opt/mendix /opt/mendix
 
-# Use nginx supplied by the base OS
-ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
-
-WORKDIR /opt/mendix/build
-
 RUN chmod 777 /opt/mendix/build/nginx/ &&\
     chmod -R o+s+w /opt/mendix/build/nginx/
 
-
-COPY nginx.conf /opt/mendix/build/nginx/conf/
+WORKDIR /opt/mendix/build
 
 USER 1001
 
