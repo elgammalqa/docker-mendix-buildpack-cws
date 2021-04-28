@@ -11,7 +11,8 @@ get-sample:
 build-image:
 	docker build \
 	--build-arg BUILD_PATH=code \
-	--build-arg CF_BUILDPACK=$(CF_BUILDPACK_VERSION) \
+	--build-arg CF_BUILDPACK=cf-mendix-buildpack.zip \
+	--build-arg ROOTFS_IMAGE=amirelgammal/omnix-mendix-ubi8:153 \
 	-t amirelgammal/cws:$(VERSION) .
 
 test-container:
