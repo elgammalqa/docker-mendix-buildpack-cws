@@ -1,21 +1,18 @@
-# Dockerfile to create a Mendix Docker image based on either the source code or
-# Mendix Deployment Archive (aka mda file)
-#
-# Author: Mendix Digital Ecosystems, digitalecosystems@mendix.com
-# Version: 2.1.0
-
-ARG ROOTFS_IMAGE=amirelgammal/cws:135
+ARG ROOTFS_IMAGE=amirelgammal/omnix-mendix-ubi8:153
 ARG BUILDER_ROOTFS_IMAGE=amirelgammal/mendix-build:95
-
 
 # Build stage
 FROM ${BUILDER_ROOTFS_IMAGE} AS builder
 
-# Build-time variables
 ARG BUILD_PATH=project
 ARG DD_API_KEY
 # CF buildpack version
 ARG CF_BUILDPACK=v4.12.0
+# ARG EXCLUDE_LOGFILTER=true
+
+# # Allow specification of alternative BLOBSTORE location and debugging
+# ARG BLOBSTORE
+# ARG BUILDPACK_XTRACE
 
 # Each comment corresponds to the script line:
 # 1. Create all directories needed by scripts
@@ -46,6 +43,9 @@ RUN chmod +rx /opt/mendix/buildpack/bin/bootstrap-python && /opt/mendix/buildpac
 # Add the buildpack modules
 ENV PYTHONPATH "$PYTHONPATH:/opt/mendix/buildpack/lib/:/opt/mendix/buildpack/:/opt/mendix/buildpack/lib/python3.6/site-packages/"
 
+# Use nginx supplied by the base OS
+ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
+
 # Each comment corresponds to the script line:
 # 1. Create cache directory and directory for dependencies which can be shared
 # 2. Set permissions for compilation scripts
@@ -68,14 +68,28 @@ FROM ${ROOTFS_IMAGE}
 LABEL Author="Mendix Digital Ecosystems"
 LABEL maintainer="digitalecosystems@mendix.com"
 
+# Uninstall build-time dependencies to remove potentially vulnerable libraries
+ARG UNINSTALL_BUILD_DEPENDENCIES=true
+
 # Allow the root group to modify /etc/passwd so that the startup script can update the non-root uid
 RUN chmod g=u /etc/passwd
+
+# Uninstall Ubuntu packages which are only required during build time
+RUN if [ "$UNINSTALL_BUILD_DEPENDENCIES" = "true" ] && grep -q ubuntu /etc/os-release ; then\
+        DEBIAN_FRONTEND=noninteractive apt-mark manual libfontconfig1 && \
+        DEBIAN_FRONTEND=noninteractive apt-get remove --purge --auto-remove -q -y wget curl libgdiplus ; \
+    fi
 
 # Add the buildpack modules
 ENV PYTHONPATH "/opt/mendix/buildpack/lib/:/opt/mendix/buildpack/:/opt/mendix/buildpack/lib/python3.6/site-packages/"
 
 # Copy start scripts
 COPY scripts/startup scripts/vcap_application.json /opt/mendix/build/
+
+# Create vcap home directory for Datadog configuration
+RUN mkdir -p /home/vcap &&\
+    chgrp -R 0 /home/vcap &&\
+    chmod -R g=u /home/vcap
 
 # Each comment corresponds to the script line:
 # 1. Make the startup script executable
@@ -94,7 +108,16 @@ COPY --from=builder /var/mendix/build/runtimes /opt/mendix/build/runtimes
 # Copy build artifacts from build container
 COPY --from=builder /opt/mendix /opt/mendix
 
+# Use nginx supplied by the base OS
+ENV NGINX_CUSTOM_BIN_PATH=/usr/sbin/nginx
+
 WORKDIR /opt/mendix/build
+
+RUN chmod 777 /opt/mendix/build/nginx/ &&\
+    chmod -R o+s+w /opt/mendix/build/nginx/
+
+
+COPY nginx.conf /opt/mendix/build/nginx/conf/
 
 USER 1001
 
