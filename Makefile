@@ -12,7 +12,6 @@ build-image:
 	docker build \
 	--build-arg BUILD_PATH=code \
 	--build-arg CF_BUILDPACK=v4.12.0 \
-	--build-arg ROOTFS_IMAGE=amirelgammal/omnix-mendix-bionic:157 \
 	-t amirelgammal/cws:$(VERSION) .
 
 test-container:
