@@ -1,5 +1,5 @@
 ARG ROOTFS_IMAGE=amirelgammal/omnix-mendix-ubi8:153
-ARG BUILDER_ROOTFS_IMAGE=amirelgammal/mendix-build:95
+ARG BUILDER_ROOTFS_IMAGE=amirelgammal/omnix-mendix-ubi8:153
 
 # Build stage
 FROM ${BUILDER_ROOTFS_IMAGE} AS builder
